@@ -347,7 +347,24 @@ def calculateKR():
     })
   return jsonify(room_info)
 
+@app.route("/calculate-krAll", methods=["GET"])
+def calculateKRAll():
+  rows = []
+  for pinfo in cur.execute("SELECT * FROM kondisiruangan;"):
+    rows.append(pinfo)
 
+  room_info = []
+  for p in rows:
+    rumus = Decimal(4) * p[3] + Decimal(3) * p[4] + Decimal(2) * p[5] + Decimal(1) * p[6]
+    nilai = (rumus/(Decimal(4)* p[7]))*Decimal(100)
+    hasil = str(nilai) + "%"
+    room_info.append({
+      "ID" : p[0],
+      "Nama Sekolah" : p[2],
+      "Tingkat Kelayakan Infrastruktur" : hasil,
+      "Kategori" : p[9]    
+    })
+  return jsonify(room_info)
 
 #     response = {"ID Sekolah" :rinfo, "Persentase Kelayakan" : persentaseKelayakan}
 #     return jsonify(response)
