@@ -2,9 +2,9 @@ from sqlalchemy import create_engine
 
 db_user = "root" # ex : root
 db_password = ""
-db_host = "localhost" # ex : localhost
+db_host = "34.101.106.57" # ex : localhost
 db_port = 3306 # ex :3306
-db_database = "tstami" #ex : db_afkar
+db_database = "danabos" #ex : db_afkar
 db_sslmode = True
 
 # ini klo pake mysql
