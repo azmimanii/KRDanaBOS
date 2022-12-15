@@ -293,66 +293,62 @@ def writeKr():
 
 @app.route("/calculate-kr", methods=["GET"])
 
-def calculateKR(user):
+def calculateKR(id: int):
   auth_header = request.args.get("Authorization")
+  ID = request.args.get("ID")
 
   valid = checkToken(auth_header)
 
   if not valid:
     return "Token not valid", 404
- 
+
   rows = []
-  for rinfo in cur.execute("SELECT * FROM kondisiruangan;"):
-    rows.append(rinfo)
+  for pinfo in cur.execute("SELECT * FROM `datasetplayer` WHERE ID = %s", (ID,)):
+    rows.append(pinfo)
+
+  room_info = []
+  for p in rows:
+    rumus = Decimal(4) * p[3] + Decimal(3) * p[4] + Decimal(2) * p[5] + Decimal(1) * p[6]
+    nilai = (rumus/(Decimal(4)* p[7]))*Decimal(100)
+    hasil = str(nilai) + "%"
+    room_info.append({
+      "ID" : p[0],
+      "Nama Sekolah" : p[2],
+      "Tingkat Kelayakan Infrastruktur" : hasil
+    })
+  return jsonify(room_info)
+
+
+
+#     response = {"ID Sekolah" :rinfo, "Persentase Kelayakan" : persentaseKelayakan}
+#     return jsonify(response)
+
+# @app.route("/level-kr", methods=["GET"])
+# def levelKR(user):
+#   auth_header = request.args.get("Authorization")
+
+#   valid = checkToken(auth_header)
+
+#   if not valid:
+#     return "Token not valid", 404
     
-    valueBaik = 4
-    valueRR = 3
-    valueRS = 2
-    valueRB = 1
+#   if request.method == "GET":
+#       cur = conn.cursor()
+#       cur.execute(
+#       f"SELECT Persentase_Kelayakan FROM kondisiruangan")
+#       data = cur.fetchall()
 
-    for row in data:
-        realita = (
-        [totalBaik * valueBaik for totalBaik in conn.execute('SELECT Baik FROM kondisiruangan')] + 
-        [totalRR * valueRR for totalRR in conn.execute('SELECT Rusak_Ringan FROM kondisiruangan')]+
-        [totalRS * valueRS for totalRS in conn.execute('SELECT Rusak_Sedang FROM kondisiruangan')]+
-        [totalRB * valueRB for totalRB in conn.execute('SELECT Rusak_Berat FROM kondisiruangan')]) 
-
-        maxValue = [totalMax * valueBaik for totalMax in conn.execute('SELECT Jumlah_Ruangan FROM kondisiruangan')]
-
-        persentaseKelayakan = realita/maxValue * 100
-
-    queries = [
-        f"""ALTER TABLE kondisiruangan ADD COLUMN Persentase_Kelayakan INT", 
-        "UPDATE kondisiruangan SET Persentase_Kelayakan = {persentaseKelayakan}"""]
-
-    cur.executemany(queries)
-
-@app.route("/level-kr", methods=["GET"])
-def levelKR(user):
-  auth_header = request.args.get("Authorization")
-
-  valid = checkToken(auth_header)
-
-  if not valid:
-    return "Token not valid", 404
-    
-  if request.method == "GET":
-      cur = conn.cursor()
-      cur.execute(
-      f"SELECT Persentase_Kelayakan FROM kondisiruangan")
-      data = cur.fetchall()
-
-      for row in data:
-          if row[1]>=90:
-              return 'Sangat Baik'
-          elif row[1]<90 and row[1]>=75:
-              return 'Baik'
-          elif row[1]<75 and row[1]>=60:
-              return 'Sedang'
-          elif row[1]<60 and row[1]>=50:
-              return 'Buruk'
-          else:
-              return 'Sangat Buruk'
+#       for row in data:
+#           if row[1]>=90:
+#               return 'Sangat Baik'
+#           elif row[1]<90 and row[1]>=75:
+#               return 'Baik'
+#           elif row[1]<75 and row[1]>=60:
+#               return 'Sedang'
+#           elif row[1]<60 and row[1]>=50:
+#               return 'Buruk'
+#           else:
+#               return 'Sangat Buruk'
 
 
 key = "7eSEw7FDi6FHwBS7WyeVlrSjzWhGT4NW"
