@@ -19,9 +19,9 @@ app.config["SECRET_KEY"] = "secret"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_SERVER"] = "imap.gmail.com"
 app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_DEFAULT_SENDER"] = "sibatuarachristian@gmail.com"
-app.config["MAIL_USERNAME"] = "sibatuarachristian@gmail.com"
-app.config["MAIL_PASSWORD"] = "sbbwxwbusamrkoku"
+app.config["MAIL_DEFAULT_SENDER"] = "18220030@std.stei.itb.ac.id"
+app.config["MAIL_USERNAME"] = "18220030@std.stei.itb.ac.id"
+app.config["MAIL_PASSWORD"] = "zvdomkdzzblvxnir"
 
 mail = Mail(app)
 
@@ -288,6 +288,69 @@ def writeKr():
   
   cur.execute("INSERT INTO kondisiruangan (Nama_Kecamatan, Nama_Sekolah, Baik, Rusak_Ringan, Rusak_Sedang, Rusak_Berat, Jumlah_Ruangan) VALUES (%s, %s, %s, %s, %s, %s, %s)", (payload["nama_kecamatan"], payload["nama_sekolah"], payload["baik"], payload["rusak_ringan"], payload["rusak_sedang"], payload["rusak_berat"], jumlah_ruangan))
   return jsonify(payload)
+
+@app.route("/calculate-kr", methods=["GET"])
+
+def calculateKR(user):
+  auth_header = request.args.get("Authorization")
+
+  valid = checkToken(auth_header)
+
+  if not valid:
+    return "Token not valid", 404
+ 
+  rows = []
+  for rinfo in cur.execute("SELECT * FROM kondisiruangan;"):
+    rows.append(rinfo)
+    
+    valueBaik = 4
+    valueRR = 3
+    valueRS = 2
+    valueRB = 1
+
+    for row in data:
+        realita = (
+        [totalBaik * valueBaik for totalBaik in conn.execute('SELECT Baik FROM kondisiruangan')] + 
+        [totalRR * valueRR for totalRR in conn.execute('SELECT Rusak_Ringan FROM kondisiruangan')]+
+        [totalRS * valueRS for totalRS in conn.execute('SELECT Rusak_Sedang FROM kondisiruangan')]+
+        [totalRB * valueRB for totalRB in conn.execute('SELECT Rusak_Berat FROM kondisiruangan')]) 
+
+        maxValue = [totalMax * valueBaik for totalMax in conn.execute('SELECT Jumlah_Ruangan FROM kondisiruangan')]
+
+        persentaseKelayakan = realita/maxValue * 100
+
+    queries = [
+        f"""ALTER TABLE kondisiruangan ADD COLUMN Persentase_Kelayakan INT", 
+        "UPDATE kondisiruangan SET Persentase_Kelayakan = {persentaseKelayakan}"""]
+
+    cur.executemany(queries)
+
+@app.route("/level-kr", methods=["GET"])
+def levelKR(user):
+  auth_header = request.args.get("Authorization")
+
+  valid = checkToken(auth_header)
+
+  if not valid:
+    return "Token not valid", 404
+    
+  if request.method == "GET":
+      cur = conn.cursor()
+      cur.execute(
+      f"SELECT Persentase_Kelayakan FROM kondisiruangan")
+      data = cur.fetchall()
+
+      for row in data:
+          if row[1]>=90:
+              return 'Sangat Baik'
+          elif row[1]<90 and row[1]>=75:
+              return 'Baik'
+          elif row[1]<75 and row[1]>=60:
+              return 'Sedang'
+          elif row[1]<60 and row[1]>=50:
+              return 'Buruk'
+          else:
+              return 'Sangat Buruk'
 
 
 key = "7eSEw7FDi6FHwBS7WyeVlrSjzWhGT4NW"
