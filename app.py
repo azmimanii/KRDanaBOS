@@ -292,8 +292,7 @@ def writeKr():
   return jsonify(payload)
 
 @app.route("/calculate-kr", methods=["GET"])
-
-def calculateKR(id: int):
+def calculateKR():
   auth_header = request.args.get("Authorization")
   ID = request.args.get("ID")
 
