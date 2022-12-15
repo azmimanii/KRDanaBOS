@@ -53,10 +53,12 @@ def checkToken(bearer):
     date_str = decodedToken['exp_date']
     tokenDate = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
     if (tokenDate < datetime.now()):
-      raise
+      raise 
 
     return True
   except:
+    print(tokenDate)
+    print(date_str)
     return False
 
 def checkOTP(otp):
