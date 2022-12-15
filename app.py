@@ -134,7 +134,7 @@ def logIn():
                 'message': 'Save this token! Token will expire in 3 Days',
                 'token' : token
                 }), 201
-    return "No available email! Please sign in", 404
+    return "Wrong email! Please retry", 404
 
 # Main App
 
