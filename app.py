@@ -28,15 +28,15 @@ mail = Mail(app)
 app.register_blueprint(user_blueprint)
 
 @app.route('/')
-def hello_world():  # put application's code here
-    return 'Hello! This is Ami!'
+def welcome():  
+    return 'Welcome to School Infrastructure Analytics API!'
 
 # Authentication
 
 def otpHandler(data):
   otp = secrets.token_hex(3)
   session["otp"] = otp  # Store the OTP in the session
-  msg = Message("Your OTP, Happy Coding!", recipients=[data['email']])
+  msg = Message("OTP School Infrastructure Analytics", recipients=[data['email']])
   msg.body = f"Your OTP is {otp}"
   mail.send(msg)
 
@@ -126,12 +126,12 @@ def logIn():
 
     for user in cur.execute(' SELECT * FROM user WHERE email=%s LIMIT 1', (data['email'],)):
         if (verifyUser(data['password'], user['password'])):
-            date = datetime.now() + timedelta(days=7)
+            date = datetime.now() + timedelta(days=3)
             date_str = date.strftime("%Y-%m-%dT%H:%M:%S")
             token = jwt.encode({'exp_date' : date_str}, "secret")
             return jsonify(
                 {
-                'message': 'Please save this token and use it to access our provided API! This token will last for 7 Days',
+                'message': 'Save this token! Token will expire in 3 Days',
                 'token' : token
                 }), 201
     return "No available email! Please sign in", 404
@@ -206,7 +206,7 @@ def getKrByName():
     return "Token not valid", 404
 
   rows = []
-  for rinfo in cur.execute(text("SELECT * FROM kondisiruangan WHERE Nama_Sekolah LIKE :rname"), {"rname": f"%{name}%"}):
+  for rinfo in cur.execute(text("SELECT * FROM kondisiruangan WHERE Nama_Sekolah LIKE '%{rname}%'".format(rname = name))):
     rows.append(rinfo)
   
   room_info = []  
@@ -219,7 +219,9 @@ def getKrByName():
       "Rusak Ringan" : str(p[4]),
       "Rusak Sedang" : str(p[5]),
       "Rusak Berat" : str(p[6]),
-      "Jumlah Ruangan" : str(p[7])
+      "Jumlah Ruangan" : str(p[7]),
+      "Skor Kelayakan" : str(p[8]),
+      "Kategori" : p[9]
     })
 
   return jsonify(room_info)  
@@ -251,19 +253,46 @@ def updateKr():
   body = request.json
 
   payload = {
-    "ID" : ID,
     "nama_kecamatan" : body["nama_kecamatan"],
     "nama_sekolah" : body["nama_sekolah"],
     "baik" : body["baik"],
     "rusak_ringan" : body["rusak_ringan"],
     "rusak_sedang" : body["rusak_sedang"],
-    "rusak_berat" : body["rusak_berat"]
+    "rusak_berat" : body["rusak_berat"],
+    "jumlah_ruangan" : body["jumlah_ruangan"]
   }
-  
-  jumlah_ruangan = int(payload["baik"]) + int(payload["rusak_ringan"]) + int(payload["rusak_sedang"]) + int(payload["rusak_berat"])
 
+  cur.execute("UPDATE kondisiruangan SET Nama_Kecamatan = %s, Nama_Sekolah = %s, Baik = %s, Rusak_Ringan = %s, Rusak_Sedang = %s, Rusak_Berat = %s, Jumlah_Ruangan = %s WHERE ID = %s", (payload["nama_kecamatan"], payload["nama_sekolah"], payload["baik"], payload["rusak_ringan"], payload["rusak_sedang"], payload["rusak_berat"], payload["jumlah_ruangan"], ID))
 
-  cur.execute("UPDATE kondisiruangan SET Nama_Kecamatan = %s, Nama_Sekolah = %s, Baik = %s, Rusak_Ringan = %s, Rusak_Sedang = %s, Rusak_Berat = %s, Jumlah_Ruangan = %s WHERE ID = %s", (payload["nama_kecamatan"], payload["nama_sekolah"], payload["baik"], payload["rusak_ringan"], payload["rusak_sedang"], payload["rusak_berat"], jumlah_ruangan, payload["ID"]))
+  rows = []
+  for pinfo in cur.execute("SELECT * FROM kondisiruangan WHERE ID = %s", (ID,)):
+    rows.append(pinfo)
+
+  room_info = []
+  nilai = 0
+  for p in rows:
+    rumus = Decimal(4) * p[3] + Decimal(3) * p[4] + Decimal(2) * p[5] + Decimal(1) * p[6]
+    nilai = (rumus/(Decimal(4)* p[7]))*Decimal(100)
+    hasil = str(nilai) + "%"
+    room_info.append({
+      "ID" : p[0],
+      "Nama Sekolah" : p[2],
+      "Tingkat Kelayakan Infrastruktur" : hasil
+    })
+  result = float(nilai)
+  if result>=90:
+    cat = 'Sangat Baik'
+  elif result<90 and result>=75:
+    cat = 'Baik'
+  elif result<75 and result>=60:
+    cat = 'Sedang'
+  elif result<60 and result>=50:
+    cat = 'Buruk'
+  else:
+    cat = 'Sangat Buruk'
+  print(cat)
+  query = "UPDATE kondisiruangan SET skorkelayakan = {skor}, kategori = '{kategori}' WHERE ID = {idSekolah}".format(skor = result, kategori = cat, idSekolah = ID)
+  cur.execute(query)
   return jsonify(payload)
 
 @app.route("/writeKr", methods=["POST"])
@@ -302,7 +331,7 @@ def calculateKR():
     return "Token not valid", 404
 
   rows = []
-  for pinfo in cur.execute("SELECT * FROM `datasetplayer` WHERE ID = %s", (ID,)):
+  for pinfo in cur.execute("SELECT * FROM kondisiruangan WHERE ID = %s", (ID,)):
     rows.append(pinfo)
 
   room_info = []
@@ -313,7 +342,8 @@ def calculateKR():
     room_info.append({
       "ID" : p[0],
       "Nama Sekolah" : p[2],
-      "Tingkat Kelayakan Infrastruktur" : hasil
+      "Tingkat Kelayakan Infrastruktur" : hasil,
+      "Kategori" : p[9]    
     })
   return jsonify(room_info)
 
@@ -359,5 +389,49 @@ def encodeStr(ePass):
 def verifyUser(ePass, cPass):
   return bcrypt.checkpw((key+ePass).encode("utf-8"), cPass.encode("utf-8"))
 
+# @app.route("/add-score-kr", methods=["GET"])
+# def addScoreKR():
+  # id = []
+  # for pinfo in cur.execute("SELECT count(*) FROM kondisiruangan;"):
+  #   id.append(pinfo)
+
+  # len = id[0]
+
+  # len += 1
+  # for i in range(1, 275):
+  #   ID = i
+
+  #   rows = []
+  #   for pinfo in cur.execute("SELECT * FROM kondisiruangan WHERE ID = %s", (ID,)):
+  #     rows.append(pinfo)
+
+  #   room_info = []
+  #   for p in rows:
+  #     rumus = Decimal(4) * p[3] + Decimal(3) * p[4] + Decimal(2) * p[5] + Decimal(1) * p[6]
+  #     nilai = (rumus/(Decimal(4)* p[7]))*Decimal(100)
+  #     hasil = str(nilai) + "%"
+  #     room_info.append({
+  #       "ID" : p[0],
+  #       "Nama Sekolah" : p[2],
+  #       "Tingkat Kelayakan Infrastruktur" : hasil
+  #     })
+  #   result = float(nilai)
+  #   if result>=90:
+  #     cat = 'Sangat Baik'
+  #   elif result<90 and result>=75:
+  #     cat = 'Baik'
+  #   elif result<75 and result>=60:
+  #     cat = 'Sedang'
+  #   elif result<60 and result>=50:
+  #     cat = 'Buruk'
+  #   else:
+  #     cat = 'Sangat Buruk'
+  #   print(cat)
+  #   query = "UPDATE kondisiruangan SET kategori = '{kategori}' WHERE ID = {idSekolah}".format(kategori = cat, idSekolah = ID)
+  #   cur.execute(query)
+  # return {"msg": "berhasil"}
+
 if __name__ == '__main__':
     app.run()
+
+
