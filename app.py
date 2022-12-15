@@ -350,7 +350,7 @@ def calculateKR():
 @app.route("/calculate-krAll", methods=["GET"])
 def calculateKRAll():
   rows = []
-  for pinfo in cur.execute("SELECT * FROM kondisiruangan;"):
+  for pinfo in cur.execute("SELECT * FROM kondisiruangan WHERE skorkelayakan != 0;"):
     rows.append(pinfo)
 
   room_info = []
